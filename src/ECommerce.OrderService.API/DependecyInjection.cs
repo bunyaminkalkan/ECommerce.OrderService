@@ -1,9 +1,17 @@
-﻿using ECommerce.BuildingBlocks.Shared.Kernel.Auth.Options;
+﻿using ECommerce.BuildingBlocks.EventBus.Base;
+using ECommerce.BuildingBlocks.EventBus.RabbitMQ;
+using ECommerce.BuildingBlocks.Shared.Kernel.Auth.Options;
 using ECommerce.BuildingBlocks.Shared.Kernel.Middlewares;
+using ECommerce.OrderService.Application.Common.Interfaces;
+using ECommerce.OrderService.Application.Context.PostgreSQL;
+using ECommerce.OrderService.Domain.Repositories;
 using ECommerce.OrderService.Infrastructure.Context.PostgreSQL;
+using ECommerce.OrderService.Infrastructure.Repositories;
+using ECommerce.OrderService.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using RabbitMQ.Client;
 using Space.DependencyInjection;
 
 namespace ECommerce.OrderService.API;
@@ -15,6 +23,21 @@ public static class DependecyInjection
     public static IServiceCollection InstallServices(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddControllers();
+
+        #region HealthChecks
+        services
+            .AddSingleton<IConnection>(sp =>
+            {
+                var factory = new ConnectionFactory
+                {
+                    Uri = new Uri(configuration.GetSection("EventBusConfig")["ConnectionString"]),
+                };
+                return factory.CreateConnectionAsync().GetAwaiter().GetResult();
+            })
+            .AddHealthChecks()
+            .AddNpgSql(configuration.GetConnectionString("PostgreSQL"))
+            .AddRabbitMQ();
+        #endregion
 
         #region OpenApi
         services.AddOpenApi(options =>
@@ -64,9 +87,17 @@ public static class DependecyInjection
         #endregion
 
         #region RabbitMQ
+        var eventBusConfig = configuration
+            .GetSection("EventBusConfig")
+            .Get<EventBusConfig>();
+
+        services.AddRabbitMQEventBus(eventBusConfig!, new[] { typeof(Program).Assembly });
         #endregion
 
         #region Interfaces
+        services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
+        services.AddScoped<IAppDbContext, AppDbContext>();
+        services.AddScoped<IOrderRepository, OrderRepository>();
         #endregion
 
         #region Space
