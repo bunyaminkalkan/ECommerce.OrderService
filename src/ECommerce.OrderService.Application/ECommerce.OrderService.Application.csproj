@@ -6,4 +6,13 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ECommerce.OrderService.Domain\ECommerce.OrderService.Domain.csproj" />
+    <ProjectReference Include="..\ECommerce.OrderService.Shared\ECommerce.OrderService.Shared.csproj" />
+  </ItemGroup>
+
 </Project>
